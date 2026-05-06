@@ -17,14 +17,14 @@
 	let discoverMessage = $state('');
 	let discoverError = $state('');
 
-	const sourceLabels: Record<string, string> = {
-		remotive: 'Remotive',
-		jsearch: 'JSearch (RapidAPI)',
-		greenhouse: 'Greenhouse Boards',
-		lever: 'Lever Boards',
-		career_pages: 'Career Pages',
-		hn_who_is_hiring: 'HN Who is Hiring',
-		yc_jobs: 'YC Jobs'
+	const sourceLabels: Record<string, { label: string; hint?: string }> = {
+		remotive: { label: 'Remotive' },
+		jsearch: { label: 'JSearch (RapidAPI)' },
+		greenhouse: { label: 'Greenhouse Boards', hint: 'Filtered by role keywords' },
+		lever: { label: 'Lever Boards', hint: 'Filtered by role keywords' },
+		career_pages: { label: 'Career Pages', hint: 'Filtered by role keywords' },
+		hn_who_is_hiring: { label: 'HN Who is Hiring', hint: 'Filtered by role + startup keywords' },
+		yc_jobs: { label: 'YC Jobs', hint: 'Filtered by role + startup keywords' }
 	};
 
 	onMount(async () => {
@@ -68,6 +68,7 @@
 			if (result.profile) config!.profile = result.profile;
 			if (result.target_roles) config!.target_roles = result.target_roles;
 			if (result.search_queries) config!.search_queries = result.search_queries;
+			await save();
 		} catch (e: any) {
 			error = e.message;
 		} finally {
@@ -80,6 +81,15 @@
 		config!.search_queries = target.value
 			.split('\n')
 			.filter((q: string) => q.trim());
+	}
+
+	function handleKeywordsInput(field: 'role_keywords' | 'startup_role_keywords') {
+		return (e: Event) => {
+			const target = e.target as HTMLTextAreaElement;
+			config![field] = target.value
+				.split('\n')
+				.filter((q: string) => q.trim());
+		};
 	}
 
 	async function handleFileUpload(e: Event) {
@@ -258,6 +268,30 @@
 						oninput={handleQueriesInput}
 					></textarea>
 				</div>
+				<div class="field">
+					<label for="role-keywords">Role keywords (one per line)</label>
+					<textarea
+						id="role-keywords"
+						rows="5"
+						value={config.role_keywords?.join('\n') || ''}
+						oninput={handleKeywordsInput('role_keywords')}
+					></textarea>
+					<p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+						Job titles must contain one of these keywords to be included from Greenhouse, Lever, and career page sources.
+					</p>
+				</div>
+				<div class="field">
+					<label for="startup-keywords">Startup role keywords (one per line)</label>
+					<textarea
+						id="startup-keywords"
+						rows="3"
+						value={config.startup_role_keywords?.join('\n') || ''}
+						oninput={handleKeywordsInput('startup_role_keywords')}
+					></textarea>
+					<p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+						Additional keywords used for HN Who is Hiring and YC Jobs (combined with role keywords above).
+					</p>
+				</div>
 			</section>
 
 			<section class="card">
@@ -301,10 +335,13 @@
 				<h2>Sources</h2>
 				<p class="hint">Toggle which job boards and sources to search.</p>
 				<div class="source-toggles">
-					{#each Object.entries(sourceLabels) as [key, label]}
+					{#each Object.entries(sourceLabels) as [key, source]}
 						<label class="toggle-row">
 							<input type="checkbox" bind:checked={config.sources[key]} />
-							<span>{label}</span>
+							<span>{source.label}</span>
+							{#if source.hint}
+								<span class="source-hint">{source.hint}</span>
+							{/if}
 						</label>
 					{/each}
 				</div>
@@ -379,6 +416,12 @@
 		gap: 10px;
 		font-size: 14px;
 		cursor: pointer;
+	}
+
+	.source-hint {
+		font-size: 11px;
+		color: var(--text-muted);
+		font-style: italic;
 	}
 
 	.toggle-row input[type='checkbox'] {

@@ -122,6 +122,15 @@ def get_config_endpoint():
         safe["api_keys"]["anthropic_env"] = True
     if not api_keys.get("rapidapi") and config.RAPIDAPI_KEY:
         safe["api_keys"]["rapidapi_env"] = True
+
+    prompts = safe.get("prompts", {})
+    safe["prompts"] = {
+        "matching": prompts.get("matching", "") or config._DEFAULT_MATCHING,
+        "resume_tailoring": prompts.get("resume_tailoring", "") or config._DEFAULT_RESUME,
+        "cover_letter": prompts.get("cover_letter", "") or config._DEFAULT_COVER_LETTER,
+        "humanize": prompts.get("humanize", "") or config._DEFAULT_HUMANIZE,
+    }
+
     return safe
 
 
@@ -411,6 +420,9 @@ def _run_search():
 
 @app.post("/api/search")
 def start_search():
+    config.reload_config()
+    if not config.ANTHROPIC_API_KEY:
+        raise HTTPException(400, "Anthropic API key not configured. Add it in Settings first.")
     if _search_state["status"] == "running":
         raise HTTPException(400, "Search already running")
 

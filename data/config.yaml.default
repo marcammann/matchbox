@@ -1,6 +1,6 @@
 resume_path: RESUME.md
 api_keys:
-  anthropic: sk-ant-...your-key-here
+  anthropic: ''
   rapidapi: ''
 model: claude-sonnet-4-6
 match_threshold: 55

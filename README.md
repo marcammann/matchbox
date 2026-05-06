@@ -27,7 +27,7 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 No setup files are required — configure everything through the web UI on first launch. Or to pre-configure:
 
 ```bash
-cp data/config.yaml.example data/config.yaml   # edit with your API keys and profile
+cp data/config.yaml.default data/config.yaml   # edit with your API keys and profile
 cp data/RESUME.example.md data/RESUME.md       # paste your resume in markdown
 ```
 
