@@ -2,6 +2,8 @@
 
 AI-powered job search agent that finds roles, matches them to your profile, and prepares tailored applications.
 
+![Matchbox dashboard](docs/screenshot.png)
+
 ## What it does
 
 - **Multi-source search** — Remotive, JSearch (LinkedIn/Indeed/Glassdoor), Greenhouse boards, Lever boards, company career pages, HN Who is Hiring, YC Jobs
