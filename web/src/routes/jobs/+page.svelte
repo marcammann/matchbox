@@ -47,7 +47,7 @@
 		return list.sort((a, b) => b.score - a.score);
 	});
 
-	const dates = $derived(Object.keys(matchedJobs).sort().reverse());
+	const dates = $derived(Object.keys(allJobs).sort().reverse());
 
 	onMount(async () => {
 		await loadJobs();
@@ -206,8 +206,11 @@
 	{#each dates as dt}
 		<div class="date-group">
 			<h2>{formatDate(dt)}</h2>
+			{#if !matchedJobs[dt] || matchedJobs[dt].length === 0}
+				<p class="empty-day">No new matches for this day.</p>
+			{/if}
 			<div class="job-list">
-				{#each matchedJobs[dt] as job}
+				{#each matchedJobs[dt] || [] as job}
 					<div class="job-card">
 						<div class="job-header" onclick={() => toggleExpand(job.id)} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleExpand(job.id)}>
 							<div class="job-info">
@@ -455,6 +458,12 @@
 </div>
 
 <style>
+	.empty-day {
+		font-size: 13px;
+		color: var(--text-muted);
+		padding: 12px 0;
+	}
+
 	.modal-overlay {
 		position: fixed;
 		inset: 0;
