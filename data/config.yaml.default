@@ -45,6 +45,7 @@ lever_boards:
   - company: Spotify
     board_token: spotify
     category: big_tech
+ashby_boards: []
 prompts:
   matching_system: 'You are a job-matching assistant. You evaluate job listings for
     fit with a specific candidate.
@@ -184,6 +185,7 @@ sources:
   jsearch: true
   greenhouse: true
   lever: true
+  ashby: true
   career_pages: true
   hn_who_is_hiring: true
   yc_jobs: true

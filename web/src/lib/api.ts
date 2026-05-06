@@ -140,3 +140,36 @@ export interface SearchStatus {
 	matches: number;
 	errors: string[];
 }
+
+export interface RemoteCompany {
+	name: string;
+	slug: string;
+	website: string;
+	careers_url: string;
+	region: string;
+	remote_policy: string;
+	company_size: string;
+	technologies: string[];
+}
+
+export async function fetchRemoteCompanies(): Promise<{
+	companies: RemoteCompany[];
+	available_technologies: string[];
+}> {
+	return request('/api/remoteintech/companies');
+}
+
+export async function matchTechnologies(): Promise<{
+	matched_technologies: string[];
+}> {
+	return request('/api/remoteintech/match-technologies', { method: 'POST' });
+}
+
+export async function addRemoteCompanies(
+	companies: { name: string; careers_url: string }[]
+): Promise<{ results: { name: string; status: string; message: string }[] }> {
+	return request('/api/remoteintech/add-companies', {
+		method: 'POST',
+		body: JSON.stringify({ companies })
+	});
+}

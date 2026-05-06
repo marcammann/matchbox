@@ -44,6 +44,7 @@ SOURCES: dict[str, bool] = {}
 CAREER_PAGES: list[dict[str, str]] = []
 GREENHOUSE_BOARDS: list[dict[str, str]] = []
 LEVER_BOARDS: list[dict[str, str]] = []
+ASHBY_BOARDS: list[dict[str, str]] = []
 PROMPT_MATCHING_SYSTEM: str = ""
 PROMPT_MATCHING: str = ""
 PROMPT_RESUME: str = ""
@@ -127,7 +128,7 @@ def _apply(cfg: dict) -> None:
     global SEARCH_QUERIES, CANDIDATE_PROFILE, TARGET_ROLES
     global ROLE_KEYWORDS, STARTUP_ROLE_KEYWORDS
     global LOCATION, SOURCES
-    global CAREER_PAGES, GREENHOUSE_BOARDS, LEVER_BOARDS
+    global CAREER_PAGES, GREENHOUSE_BOARDS, LEVER_BOARDS, ASHBY_BOARDS
     global PROMPT_MATCHING_SYSTEM, PROMPT_MATCHING, PROMPT_RESUME
     global PROMPT_COVER_LETTER, PROMPT_HUMANIZE
     global PDF_CSS
@@ -150,6 +151,7 @@ def _apply(cfg: dict) -> None:
     CAREER_PAGES = cfg.get("career_pages", [])
     GREENHOUSE_BOARDS = cfg.get("greenhouse_boards", [])
     LEVER_BOARDS = cfg.get("lever_boards", [])
+    ASHBY_BOARDS = cfg.get("ashby_boards", [])
 
     prompts = cfg.get("prompts", {})
     PROMPT_MATCHING_SYSTEM = prompts.get("matching_system", "").strip() or _DEFAULT_MATCHING_SYSTEM

@@ -29,7 +29,7 @@ from .db import (
     save_matched_jobs,
     update_job_status,
 )
-from .careers import search_career_pages, search_greenhouse_boards, search_lever_boards
+from .careers import search_ashby_boards, search_career_pages, search_greenhouse_boards, search_lever_boards
 from .match import match_jobs
 from .pdf import markdown_to_pdf
 from .search import deduplicate, search_jsearch, search_remotive
@@ -44,8 +44,8 @@ def _get_llm() -> ChatAnthropic:
 
 
 class CompanyDiscovery(BaseModel):
-    source: Literal["greenhouse", "lever", "career_page"]
-    board_token: str = Field(description="Board token for greenhouse/lever, empty string otherwise")
+    source: Literal["greenhouse", "lever", "ashby", "career_page"]
+    board_token: str = Field(description="Board token for greenhouse/lever/ashby, empty string otherwise")
     url: str = Field(description="Careers page URL")
     confidence: Literal["high", "medium", "low"]
 
@@ -156,28 +156,71 @@ async def update_config_endpoint(request: Request):
 
 # --- Company Discovery ---
 
-def _try_greenhouse(token: str) -> bool:
+def _try_greenhouse(token: str, expected_company: str | None = None) -> bool:
     try:
         with httpx.Client(timeout=10) as client:
             resp = client.get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs")
-            if resp.status_code == 200:
-                data = resp.json()
-                return len(data.get("jobs", [])) > 0
+            if resp.status_code != 200:
+                return False
+            data = resp.json()
+            if len(data.get("jobs", [])) == 0:
+                return False
+            if expected_company:
+                board = client.get(f"https://boards-api.greenhouse.io/v1/boards/{token}")
+                if board.status_code == 200:
+                    board_name = board.json().get("name", "").lower()
+                    if expected_company.lower() not in board_name and board_name not in expected_company.lower():
+                        log.info("Greenhouse token %r belongs to %r, not %r", token, board_name, expected_company)
+                        return False
+            return True
     except Exception:
         pass
     return False
 
 
-def _try_lever(token: str) -> bool:
+def _try_lever(token: str, expected_company: str | None = None) -> bool:
     try:
         with httpx.Client(timeout=10) as client:
             resp = client.get(f"https://api.lever.co/v0/postings/{token}", params={"mode": "json"})
-            if resp.status_code == 200:
-                data = resp.json()
-                return isinstance(data, list) and len(data) > 0
+            if resp.status_code != 200:
+                return False
+            data = resp.json()
+            return isinstance(data, list) and len(data) > 0
     except Exception:
         pass
     return False
+
+
+def _try_ashby(token: str, expected_company: str | None = None) -> bool:
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(f"https://api.ashbyhq.com/posting-api/job-board/{token}")
+            if resp.status_code != 200:
+                return False
+            data = resp.json()
+            return len(data.get("jobs", [])) > 0
+    except Exception:
+        pass
+    return False
+
+
+def _try_remoteintech(company: str) -> str | None:
+    """Look up a company on remoteintech.company and return its careers URL if found."""
+    slug = company.lower().strip().replace(" ", "-").replace(".", "").replace(",", "")
+    url = f"https://raw.githubusercontent.com/remoteintech/remote-jobs/main/src/companies/{slug}.md"
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(url)
+            if resp.status_code != 200:
+                return None
+            for line in resp.text.splitlines():
+                if line.strip().startswith("careers_url:"):
+                    careers = line.split(":", 1)[1].strip()
+                    if careers.startswith("http"):
+                        return careers
+    except Exception:
+        pass
+    return None
 
 
 def _token_variants(company: str) -> list[str]:
@@ -194,12 +237,49 @@ def _token_variants(company: str) -> list[str]:
     return variants
 
 
+def _extract_ats_from_url(url: str) -> tuple[str | None, str | None, str | None]:
+    """Detect Greenhouse/Lever board tokens from a URL. Returns (ats, token, company_guess)."""
+    import re
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+
+    # boards.greenhouse.io/TOKEN or job-boards.greenhouse.io/TOKEN
+    if "greenhouse.io" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "greenhouse", m.group(1), m.group(1).replace("-", " ").title()
+
+    # jobs.lever.co/TOKEN
+    if "lever.co" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "lever", m.group(1), m.group(1).replace("-", " ").title()
+
+    # jobs.ashbyhq.com/TOKEN
+    if "ashbyhq.com" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "ashby", m.group(1), m.group(1).replace("-", " ").title()
+
+    return None, None, None
+
+
+def _company_name_from_url(url: str) -> str:
+    """Best-effort company name from a careers page URL."""
+    from urllib.parse import urlparse
+    host = urlparse(url).hostname or ""
+    host = host.removeprefix("www.").removeprefix("jobs.").removeprefix("careers.")
+    name = host.split(".")[0] if host else "Unknown"
+    return name.replace("-", " ").title()
+
+
 @app.post("/api/companies/discover")
 async def discover_company(request: Request):
     body = await request.json()
     company = (body.get("company") or "").strip()
     if not company:
-        raise HTTPException(400, "Company name is required")
+        raise HTTPException(400, "Company name or URL is required")
 
     config.reload_config()
 
@@ -208,8 +288,81 @@ async def discover_company(request: Request):
         existing_companies.add(b["company"].lower())
     for b in config.LEVER_BOARDS:
         existing_companies.add(b["company"].lower())
+    for b in config.ASHBY_BOARDS:
+        existing_companies.add(b["company"].lower())
     for p in config.CAREER_PAGES:
         existing_companies.add(p["company"].lower())
+    existing_urls = {p["url"].rstrip("/").lower() for p in config.CAREER_PAGES}
+
+    is_url = company.startswith("http://") or company.startswith("https://")
+
+    if is_url:
+        if company.rstrip("/").lower() in existing_urls:
+            return {"status": "exists", "message": "This URL is already configured."}
+
+        ats, token, name_guess = _extract_ats_from_url(company)
+
+        if ats == "greenhouse" and token and _try_greenhouse(token):
+            board_name = name_guess or token
+            try:
+                with httpx.Client(timeout=10) as c:
+                    r = c.get(f"https://boards-api.greenhouse.io/v1/boards/{token}")
+                    if r.status_code == 200:
+                        board_name = r.json().get("name", board_name)
+            except Exception:
+                pass
+            if board_name.lower() in existing_companies:
+                return {"status": "exists", "message": f"{board_name} is already configured."}
+            cfg = config.get_raw_config()
+            cfg.setdefault("greenhouse_boards", []).append({
+                "company": board_name, "board_token": token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "greenhouse", "board_token": token,
+                "message": f"Found {board_name} on Greenhouse (token: {token}).",
+            }
+
+        if ats == "lever" and token and _try_lever(token):
+            lever_name = name_guess or token
+            if lever_name.lower() in existing_companies:
+                return {"status": "exists", "message": f"{lever_name} is already configured."}
+            cfg = config.get_raw_config()
+            cfg.setdefault("lever_boards", []).append({
+                "company": lever_name, "board_token": token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "lever", "board_token": token,
+                "message": f"Found {lever_name} on Lever (token: {token}).",
+            }
+
+        if ats == "ashby" and token and _try_ashby(token):
+            ashby_name = name_guess or token
+            if ashby_name.lower() in existing_companies:
+                return {"status": "exists", "message": f"{ashby_name} is already configured."}
+            cfg = config.get_raw_config()
+            cfg.setdefault("ashby_boards", []).append({
+                "company": ashby_name, "board_token": token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "ashby", "board_token": token,
+                "message": f"Found {ashby_name} on Ashby (token: {token}).",
+            }
+
+        page_company = _company_name_from_url(company)
+        if page_company.lower() in existing_companies:
+            return {"status": "exists", "message": f"{page_company} is already configured."}
+        cfg = config.get_raw_config()
+        cfg.setdefault("career_pages", []).append({
+            "company": page_company, "url": company, "category": "",
+        })
+        config.save_config(cfg)
+        return {
+            "status": "added", "source": "career_page", "url": company,
+            "message": f"Added {page_company} careers page. Note: JS-rendered pages may have limited results.",
+        }
 
     if company.lower() in existing_companies:
         return {"status": "exists", "message": f"{company} is already configured."}
@@ -217,7 +370,7 @@ async def discover_company(request: Request):
     tokens = _token_variants(company)
 
     for token in tokens:
-        if _try_greenhouse(token):
+        if _try_greenhouse(token, company):
             cfg = config.get_raw_config()
             cfg.setdefault("greenhouse_boards", []).append({
                 "company": company,
@@ -233,7 +386,7 @@ async def discover_company(request: Request):
             }
 
     for token in tokens:
-        if _try_lever(token):
+        if _try_lever(token, company):
             cfg = config.get_raw_config()
             cfg.setdefault("lever_boards", []).append({
                 "company": company,
@@ -248,6 +401,65 @@ async def discover_company(request: Request):
                 "message": f"Found {company} on Lever (token: {token}).",
             }
 
+    for token in tokens:
+        if _try_ashby(token, company):
+            cfg = config.get_raw_config()
+            cfg.setdefault("ashby_boards", []).append({
+                "company": company,
+                "board_token": token,
+                "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added",
+                "source": "ashby",
+                "board_token": token,
+                "message": f"Found {company} on Ashby (token: {token}).",
+            }
+
+    careers_url = _try_remoteintech(company) if config.LOCATION.lower().strip() == "remote" else None
+    if careers_url:
+        ats, ats_token, _ = _extract_ats_from_url(careers_url)
+        if ats == "greenhouse" and ats_token and _try_greenhouse(ats_token, company):
+            cfg = config.get_raw_config()
+            cfg.setdefault("greenhouse_boards", []).append({
+                "company": company, "board_token": ats_token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "greenhouse", "board_token": ats_token,
+                "message": f"Found {company} on Greenhouse via Remote In Tech (token: {ats_token}).",
+            }
+        if ats == "lever" and ats_token and _try_lever(ats_token, company):
+            cfg = config.get_raw_config()
+            cfg.setdefault("lever_boards", []).append({
+                "company": company, "board_token": ats_token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "lever", "board_token": ats_token,
+                "message": f"Found {company} on Lever via Remote In Tech (token: {ats_token}).",
+            }
+        if ats == "ashby" and ats_token and _try_ashby(ats_token, company):
+            cfg = config.get_raw_config()
+            cfg.setdefault("ashby_boards", []).append({
+                "company": company, "board_token": ats_token, "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added", "source": "ashby", "board_token": ats_token,
+                "message": f"Found {company} on Ashby via Remote In Tech (token: {ats_token}).",
+            }
+        cfg = config.get_raw_config()
+        cfg.setdefault("career_pages", []).append({
+            "company": company, "url": careers_url, "category": "",
+        })
+        config.save_config(cfg)
+        return {
+            "status": "added", "source": "career_page", "url": careers_url,
+            "message": f"Added {company} careers page via Remote In Tech: {careers_url}",
+        }
+
     if not config.ANTHROPIC_API_KEY:
         raise HTTPException(400, "Anthropic API key needed to discover career pages")
 
@@ -261,8 +473,12 @@ async def discover_company(request: Request):
             "Common tokens: company name lowercase, with hyphens, abbreviations, or parent company name.\n"
             "2. Lever job board — tokens appear in URLs like jobs.lever.co/COMPANY. "
             "Similar naming conventions.\n"
-            "3. Workday, Ashby, or other ATS — provide the careers/jobs listing URL.\n"
-            "4. Direct careers page on their website."
+            "3. Ashby job board — tokens appear in URLs like jobs.ashbyhq.com/COMPANY.\n"
+            "4. Workday or other ATS — provide the careers/jobs listing URL.\n"
+            "5. Direct careers page on their website.\n\n"
+            "IMPORTANT: Only suggest Greenhouse, Lever, or Ashby if you are confident the company "
+            "actually uses that platform. Many large companies use their own ATS (Workday, "
+            "iCIMS, Taleo, etc.) — for those, return the careers page URL instead."
         ))])
     except Exception:
         log.warning("Company discovery failed for %s", company, exc_info=True)
@@ -274,7 +490,7 @@ async def discover_company(request: Request):
     confidence = result.confidence
 
     if source == "greenhouse" and token:
-        if _try_greenhouse(token):
+        if _try_greenhouse(token, company):
             cfg = config.get_raw_config()
             cfg.setdefault("greenhouse_boards", []).append({
                 "company": company,
@@ -290,7 +506,7 @@ async def discover_company(request: Request):
             }
 
     if source == "lever" and token:
-        if _try_lever(token):
+        if _try_lever(token, company):
             cfg = config.get_raw_config()
             cfg.setdefault("lever_boards", []).append({
                 "company": company,
@@ -303,6 +519,22 @@ async def discover_company(request: Request):
                 "source": "lever",
                 "board_token": token,
                 "message": f"Found {company} on Lever (token: {token}).",
+            }
+
+    if source == "ashby" and token:
+        if _try_ashby(token, company):
+            cfg = config.get_raw_config()
+            cfg.setdefault("ashby_boards", []).append({
+                "company": company,
+                "board_token": token,
+                "category": "",
+            })
+            config.save_config(cfg)
+            return {
+                "status": "added",
+                "source": "ashby",
+                "board_token": token,
+                "message": f"Found {company} on Ashby (token: {token}).",
             }
 
     if url:
@@ -322,6 +554,133 @@ async def discover_company(request: Request):
         }
 
     raise HTTPException(404, f"Could not find job listings for {company}")
+
+
+# --- Remote In Tech ---
+
+class TechMatch(BaseModel):
+    matched_technologies: list[str]
+
+
+@app.get("/api/remoteintech/companies")
+def list_remote_companies():
+    from .remoteintech import get_companies
+    companies = get_companies()
+    techs = sorted({t for c in companies for t in c.technologies})
+    return {
+        "companies": [
+            {
+                "name": c.name, "slug": c.slug, "website": c.website,
+                "careers_url": c.careers_url, "region": c.region,
+                "remote_policy": c.remote_policy, "company_size": c.company_size,
+                "technologies": c.technologies,
+            }
+            for c in companies
+        ],
+        "available_technologies": techs,
+    }
+
+
+@app.post("/api/remoteintech/match-technologies")
+def match_technologies():
+    if not config.ANTHROPIC_API_KEY:
+        raise HTTPException(400, "Anthropic API key required")
+
+    from .remoteintech import get_companies
+    companies = get_companies()
+    all_techs = sorted({t for c in companies for t in c.technologies})
+
+    resume = ""
+    if config.RESUME_PATH.exists():
+        resume = config.RESUME_PATH.read_text()
+    profile = config.PROFILE or ""
+
+    if not resume and not profile:
+        raise HTTPException(400, "No resume or profile configured")
+
+    llm = _get_llm().with_structured_output(TechMatch)
+    result: TechMatch = llm.invoke([HumanMessage(content=(
+        f"Given this candidate's background, select ALL technology tags they have experience with.\n\n"
+        f"## Available tags\n{', '.join(all_techs)}\n\n"
+        f"## Candidate profile\n{profile}\n\n"
+        f"## Resume\n{resume[:3000]}\n\n"
+        "Return every tag where the candidate has meaningful experience."
+    ))])
+    return {"matched_technologies": result.matched_technologies}
+
+
+@app.post("/api/remoteintech/add-companies")
+async def add_remote_companies(request: Request):
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    body = await request.json()
+    companies_to_add = body.get("companies", [])
+    if not companies_to_add:
+        raise HTTPException(400, "No companies provided")
+
+    config.reload_config()
+    existing = set()
+    for b in config.GREENHOUSE_BOARDS:
+        existing.add(b["company"].lower())
+    for b in config.LEVER_BOARDS:
+        existing.add(b["company"].lower())
+    for p in config.CAREER_PAGES:
+        existing.add(p["company"].lower())
+
+    def _add_one(comp: dict) -> dict:
+        name = comp["name"]
+        careers_url = comp.get("careers_url", "")
+
+        if name.lower() in existing:
+            return {"name": name, "status": "exists", "message": f"{name} already configured."}
+
+        if careers_url:
+            ats, token, _ = _extract_ats_from_url(careers_url)
+            if ats == "greenhouse" and token and _try_greenhouse(token, name):
+                return {"name": name, "status": "added", "source": "greenhouse",
+                        "board_token": token, "message": f"Greenhouse ({token})"}
+            if ats == "lever" and token and _try_lever(token, name):
+                return {"name": name, "status": "added", "source": "lever",
+                        "board_token": token, "message": f"Lever ({token})"}
+            if ats == "ashby" and token and _try_ashby(token, name):
+                return {"name": name, "status": "added", "source": "ashby",
+                        "board_token": token, "message": f"Ashby ({token})"}
+            return {"name": name, "status": "added", "source": "career_page",
+                    "url": careers_url, "message": f"Career page"}
+
+        return {"name": name, "status": "skipped", "message": "No careers URL available."}
+
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        futures = {pool.submit(_add_one, c): c for c in companies_to_add}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    cfg = config.get_raw_config()
+    for r in results:
+        if r["status"] != "added":
+            continue
+        name = r["name"]
+        if r["source"] == "greenhouse":
+            cfg.setdefault("greenhouse_boards", []).append({
+                "company": name, "board_token": r["board_token"], "category": "",
+            })
+        elif r["source"] == "lever":
+            cfg.setdefault("lever_boards", []).append({
+                "company": name, "board_token": r["board_token"], "category": "",
+            })
+        elif r["source"] == "ashby":
+            cfg.setdefault("ashby_boards", []).append({
+                "company": name, "board_token": r["board_token"], "category": "",
+            })
+        elif r["source"] == "career_page":
+            cfg.setdefault("career_pages", []).append({
+                "company": name, "url": r["url"], "category": "",
+            })
+    config.save_config(cfg)
+
+    added_count = sum(1 for r in results if r["status"] == "added")
+    return {"results": results, "added": added_count}
 
 
 # --- Resume ---
@@ -379,6 +738,8 @@ def _run_search():
             sources_plan.append(("Greenhouse", f"{len(config.GREENHOUSE_BOARDS)} boards", lambda: search_greenhouse_boards()))
         if s.get("lever", True):
             sources_plan.append(("Lever", f"{len(config.LEVER_BOARDS)} boards", lambda: search_lever_boards()))
+        if s.get("ashby", True):
+            sources_plan.append(("Ashby", f"{len(config.ASHBY_BOARDS)} boards", lambda: search_ashby_boards()))
         if s.get("career_pages", True):
             n = len([p for p in config.CAREER_PAGES
                      if p["company"] not in {b["company"] for b in config.GREENHOUSE_BOARDS}

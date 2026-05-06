@@ -129,14 +129,70 @@ def search_lever_boards() -> list[Job]:
     return jobs
 
 
+def _looks_js_rendered(soup: BeautifulSoup) -> bool:
+    body = soup.find("body")
+    if not body:
+        return True
+    text = body.get_text(strip=True)
+    if len(text) < 100:
+        return True
+    scripts = soup.find_all("script")
+    links = soup.find_all("a", href=True)
+    if len(scripts) > 5 and len(links) < 3:
+        return True
+    for marker in ["__NEXT_DATA__", "__NUXT__", "react-root", "app-root", "getElementById"]:
+        if marker in str(soup):
+            if len(links) < 3:
+                return True
+    return False
+
+
+def _detect_ats(url: str) -> tuple[str | None, str | None]:
+    """Detect known ATS from a URL. Returns (ats_type, token)."""
+    import re
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+
+    if "greenhouse.io" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "greenhouse", m.group(1)
+
+    if "lever.co" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "lever", m.group(1)
+
+    if "ashbyhq.com" in host:
+        m = re.match(r"^/([a-zA-Z0-9_-]+)", parsed.path)
+        if m:
+            return "ashby", m.group(1)
+
+    return None, None
+
+
 def _scrape_career_page(company: str, url: str, category: str, client: httpx.Client) -> list[Job]:
+    ats, token = _detect_ats(url)
+    if ats and token:
+        board = {"company": company, "board_token": token, "category": category}
+        if ats == "greenhouse":
+            log.info("%s: career page URL is Greenhouse, using API (token: %s)", company, token)
+            return _fetch_greenhouse_board(board, client)
+        if ats == "lever":
+            log.info("%s: career page URL is Lever, using API (token: %s)", company, token)
+            return _fetch_lever_board(board, client)
+        if ats == "ashby":
+            log.info("%s: career page URL is Ashby, using API (token: %s)", company, token)
+            return _fetch_ashby_board(board, client)
+
     try:
         resp = client.get(url, follow_redirects=True)
         if resp.status_code != 200:
-            log.debug("Career page %s returned %d", company, resp.status_code)
+            log.warning("Career page %s returned HTTP %d", company, resp.status_code)
             return []
     except Exception:
-        log.debug("Career page fetch failed for %s", company, exc_info=True)
+        log.warning("Career page fetch failed for %s", company, exc_info=True)
         return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -172,13 +228,64 @@ def _scrape_career_page(company: str, url: str, category: str, client: httpx.Cli
             )
         )
 
+    if not jobs and _looks_js_rendered(soup):
+        log.warning("%s career page appears to be JavaScript-rendered and could not be scraped (%s)", company, url)
+
+    return jobs
+
+
+def _fetch_ashby_board(board: dict, client: httpx.Client) -> list[Job]:
+    try:
+        resp = client.get(
+            f"https://api.ashbyhq.com/posting-api/job-board/{board['board_token']}",
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception:
+        log.warning("Ashby failed for %s", board["company"], exc_info=True)
+        return []
+
+    jobs = []
+    for item in data.get("jobs", []):
+        title = item.get("title", "")
+        if not _matches_role_keywords(title):
+            continue
+
+        desc = item.get("descriptionPlain", "")
+        if not desc and item.get("descriptionHtml"):
+            desc = BeautifulSoup(item["descriptionHtml"], "html.parser").get_text(separator="\n")
+
+        jobs.append(
+            Job(
+                title=title,
+                company=board["company"],
+                description=desc,
+                url=item.get("jobUrl", ""),
+                source="ashby",
+                location=item.get("location", ""),
+                category=board.get("category"),
+                posted_date=item.get("publishedAt"),
+            )
+        )
+    return jobs
+
+
+def search_ashby_boards() -> list[Job]:
+    jobs: list[Job] = []
+    with httpx.Client(timeout=20) as client:
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = [pool.submit(_fetch_ashby_board, b, client) for b in config.ASHBY_BOARDS]
+            for future in as_completed(futures):
+                jobs.extend(future.result())
+    log.info("Ashby: found %d leadership roles across %d boards", len(jobs), len(config.ASHBY_BOARDS))
     return jobs
 
 
 def search_career_pages() -> list[Job]:
     greenhouse_companies = {b["company"] for b in config.GREENHOUSE_BOARDS}
     lever_companies = {b["company"] for b in config.LEVER_BOARDS}
-    skip = greenhouse_companies | lever_companies
+    ashby_companies = {b["company"] for b in config.ASHBY_BOARDS}
+    skip = greenhouse_companies | lever_companies | ashby_companies
     pages = [p for p in config.CAREER_PAGES if p["company"] not in skip]
 
     jobs: list[Job] = []
@@ -198,8 +305,9 @@ def search_career_pages() -> list[Job]:
 def search_all_career_sources() -> list[Job]:
     greenhouse = search_greenhouse_boards() if config.source_enabled("greenhouse") else []
     lever = search_lever_boards() if config.source_enabled("lever") else []
+    ashby = search_ashby_boards() if config.source_enabled("ashby") else []
     pages = search_career_pages() if config.source_enabled("career_pages") else []
-    total = greenhouse + lever + pages
-    log.info("All career sources: %d total (%d greenhouse, %d lever, %d pages)",
-             len(total), len(greenhouse), len(lever), len(pages))
+    total = greenhouse + lever + ashby + pages
+    log.info("All career sources: %d total (%d greenhouse, %d lever, %d ashby, %d pages)",
+             len(total), len(greenhouse), len(lever), len(ashby), len(pages))
     return total
