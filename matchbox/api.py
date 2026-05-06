@@ -746,4 +746,4 @@ if _frontend_dir.exists():
 
 def serve():
     import uvicorn
-    uvicorn.run("job_search.api:app", host="0.0.0.0", port=8000)
+    uvicorn.run("matchbox.api:app", host="0.0.0.0", port=8000)

@@ -21,7 +21,7 @@ WORKDIR /app
 COPY pyproject.toml .python-version ./
 RUN uv sync --no-dev
 
-COPY job_search/ job_search/
+COPY matchbox/ matchbox/
 COPY templates/ templates/
 
 COPY --from=frontend /web/build web/build/

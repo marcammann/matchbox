@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-matchbox = "job_search.main:main"
-matchbox-web = "job_search.api:serve"
+matchbox = "matchbox.main:main"
+matchbox-web = "matchbox.api:serve"
 
 [tool.hatch.build.targets.wheel]
-packages = ["job_search"]
+packages = ["matchbox"]
 
 [build-system]
 requires = ["hatchling"]

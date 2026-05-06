@@ -72,7 +72,7 @@ API keys can also be set via environment variables (`ANTHROPIC_API_KEY`, `RAPIDA
 
 ## Architecture
 
-- **Backend:** Python / FastAPI (`job_search/`)
+- **Backend:** Python / FastAPI (`matchbox/`)
 - **Frontend:** SvelteKit 5 (`web/`)
 - **Data:** all user files live in `data/` (config, resume, database, output)
 - **Database:** SQLite (auto-created as `data/jobs.db`)
