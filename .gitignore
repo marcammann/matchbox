@@ -1,7 +1,10 @@
 .env
 config.yaml
 RESUME.md
-data/
+data/*
+!data/.gitkeep
+!data/config.yaml.example
+!data/RESUME.example.md
 .seen_jobs.json
 .manual_jobs_done.txt
 manual_jobs.txt

@@ -25,8 +25,8 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 No setup files are required — configure everything through the web UI on first launch. Or to pre-configure:
 
 ```bash
-cp config.yaml.example config.yaml   # edit with your API keys and profile
-cp RESUME.example.md RESUME.md       # paste your resume in markdown
+cp data/config.yaml.example data/config.yaml   # edit with your API keys and profile
+cp data/RESUME.example.md data/RESUME.md       # paste your resume in markdown
 ```
 
 ### Run the web app
@@ -55,7 +55,7 @@ All user data (config, resume, database, generated PDFs) lives in the `data/` di
 
 ## Configuration
 
-All configuration lives in `config.yaml`:
+All configuration lives in `data/config.yaml`:
 
 - **API keys** — Anthropic (required), RapidAPI (optional, enables JSearch)
 - **Profile** — your professional background, used for matching and cover letters
@@ -72,7 +72,8 @@ API keys can also be set via environment variables (`ANTHROPIC_API_KEY`, `RAPIDA
 
 - **Backend:** Python / FastAPI (`job_search/`)
 - **Frontend:** SvelteKit 5 (`web/`)
-- **Database:** SQLite (auto-created as `jobs.db`)
+- **Data:** all user files live in `data/` (config, resume, database, output)
+- **Database:** SQLite (auto-created as `data/jobs.db`)
 - **AI:** Anthropic Claude via LangChain for scoring, tailoring, and extraction
 - **PDF:** WeasyPrint for resume and cover letter generation
 
