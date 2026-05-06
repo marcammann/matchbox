@@ -1,0 +1,191 @@
+resume_path: RESUME.md
+api_keys:
+  anthropic: sk-ant-...your-key-here
+  rapidapi: ''
+model: claude-sonnet-4-6
+match_threshold: 55
+profile: |
+  Your professional summary here. Include:
+  - Years of experience and key domains
+  - Current role and company
+  - Core technical skills
+  - Leadership experience
+  - Notable achievements
+  - Education background
+target_roles: |
+  Describe the types of roles you're targeting. Include ideal titles,
+  company types, industries, and what matters most to you in a role.
+search_queries:
+  - VP of Engineering
+  - Head of Product
+  - Director of AI
+  - Chief Technology Officer
+role_keywords:
+  - vp
+  - vice president
+  - head of
+  - director
+  - principal
+  - chief
+  - cto
+  - staff
+startup_role_keywords:
+  - founder
+  - founding
+  - cofounder
+career_pages:
+  - company: Anthropic
+    url: https://www.anthropic.com/careers
+    category: ai
+greenhouse_boards:
+  - company: Cloudflare
+    board_token: cloudflare
+    category: dev_tools
+lever_boards:
+  - company: Spotify
+    board_token: spotify
+    category: big_tech
+prompts:
+  matching_system: 'You are a job-matching assistant. You evaluate job listings for
+    fit with a specific candidate.
+
+    Return ONLY valid JSON — no markdown fences, no commentary.
+
+    '
+  matching: 'Evaluate each job for fit with this candidate.
+
+
+    ## Candidate Profile
+
+    {profile}
+
+
+    ## Target Roles
+
+    {target_roles}
+
+
+    ## Scoring (0-100)
+
+    - Role level alignment (40 pts): VP / Director / Head / Principal / C-level?
+
+    - Skills match (30 pts): AI/ML, architecture, platform, leadership, design systems?
+
+    - Industry relevance (20 pts): Health tech, AI, or top-tier tech company?
+
+    - Remote fit (10 pts): Truly remote-friendly for US-based candidate?
+
+
+    ## Jobs
+
+    {jobs_json}
+
+
+    Return a JSON array of objects with keys: id (int), score (int 0-100), reason
+    (string, 1-2 sentences), gaps (string, 1 sentence about skill/experience gaps
+    or "" if none).
+
+    Include ALL jobs with their scores, even low-scoring ones.
+
+    '
+  resume_tailoring: 'Customize this resume for the role below.
+
+
+    Rules:
+
+    1. Keep all facts truthful — never fabricate experience, titles, or dates
+
+    2. Rewrite the Summary (2-3 sentences) to speak directly to this role
+
+    3. Reorder and adjust emphasis of bullet points to foreground relevant experience
+
+    4. You may trim less-relevant bullets to keep the resume focused
+
+    5. Preserve the markdown format exactly
+
+    6. Aim for 2-page length when rendered
+
+
+    ## Role
+
+    Title: {title}
+
+    Company: {company}
+
+    Description:
+
+    {description}
+
+
+    ## Original Resume
+
+    {resume}
+
+
+    Return ONLY the customized resume markdown. No commentary, no fences.
+
+    '
+  cover_letter: 'Write a cover letter for this application.
+
+
+    Rules:
+
+    1. 3-4 paragraphs, conversational but professional
+
+    2. Open with genuine interest in the company or role — not generic flattery
+
+    3. Connect 2-3 specific experiences from the candidate''s background to the role''s
+    needs
+
+    4. Close with forward-looking enthusiasm
+
+    5. Don''t rehash the resume — add perspective on why this role, this company,
+    right now
+
+    6. Use a modern opening ("Hi [Company] team," or similar) — not "Dear Hiring Manager"
+
+    7. Under 300 words
+
+
+    ## Role
+
+    Title: {title}
+
+    Company: {company}
+
+    Description:
+
+    {description}
+
+
+    ## Candidate Background (summary)
+
+    {profile}
+
+
+    Return ONLY the cover letter text. No commentary, no fences.
+
+    '
+  humanize: "Rewrite the following text so it reads like a human wrote it, not an\
+    \ AI.\n\nRules:\n1. Preserve ALL factual content, names, dates, titles, and structure\
+    \ exactly\n2. Break up formulaic sentence patterns — vary sentence length and\
+    \ rhythm\n3. Replace generic AI filler (\"leverage\", \"spearheaded\", \"passionate\
+    \ about\",\n   \"proven track record\", \"uniquely positioned\", \"I'm excited\
+    \ to\", \"drives me\")\n   with specific, plain language\n4. Avoid em dashes (—\
+    ) unless they genuinely fit the sentence better than\n   a comma, period, or parenthetical.\
+    \ Most of the time, they don't.\n5. Cut unnecessary intensifiers (\"genuinely\"\
+    , \"deeply\", \"truly\", \"incredibly\")\n6. Don't start multiple paragraphs with\
+    \ \"I\" or \"At [Company]\"\n7. Keep the same tone and register — don't make it\
+    \ more casual or more formal\n8. For resumes: preserve the exact markdown format\n\
+    9. For cover letters: keep it under the same word count\n\n## Text to rewrite\n\
+    {text}\n\nReturn ONLY the rewritten text. No commentary, no fences.\n"
+sources:
+  remotive: true
+  jsearch: true
+  greenhouse: true
+  lever: true
+  career_pages: true
+  hn_who_is_hiring: true
+  yc_jobs: true
+location: remote
+pdf_css: ''

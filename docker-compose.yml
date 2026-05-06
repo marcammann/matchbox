@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - data:/data
+      - ./config.yaml:/data/config.yaml:ro
+      - ./RESUME.md:/data/RESUME.md:ro
+    environment:
+      - DATA_DIR=/data
+
+volumes:
+  data:
