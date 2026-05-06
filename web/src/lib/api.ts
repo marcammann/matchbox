@@ -138,4 +138,5 @@ export interface SearchStatus {
 	progress: number;
 	jobs_found: number;
 	matches: number;
+	errors: string[];
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
@@ -143,7 +144,7 @@ def search_jsearch(queries: list[str] | None = None) -> list[Job]:
     is_remote = config.LOCATION.lower().strip() == "remote"
 
     with httpx.Client(timeout=30) as client:
-        with ThreadPoolExecutor(max_workers=5) as pool:
+        with ThreadPoolExecutor(max_workers=3) as pool:
             futures = {pool.submit(_fetch_jsearch, q, client, headers, is_remote): q for q in queries}
             for future in as_completed(futures):
                 for job_id, job in future.result():

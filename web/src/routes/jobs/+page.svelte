@@ -4,7 +4,7 @@
 
 	let allJobs: Record<string, Job[]> = $state({});
 	let threshold = $state(55);
-	let searchStatus = $state({ status: 'idle', message: '', progress: 0, jobs_found: 0, matches: 0 });
+	let searchStatus: { status: string; message: string; progress: number; jobs_found: number; matches: number; errors: string[] } = $state({ status: 'idle', message: '', progress: 0, jobs_found: 0, matches: 0, errors: [] });
 	let expandedJob: number | null = $state(null);
 	let tailoringJob: number | null = $state(null);
 	let pollTimer: ReturnType<typeof setInterval> | null = $state(null);
@@ -79,10 +79,10 @@
 	async function runSearch() {
 		try {
 			await startSearch();
-			searchStatus = { status: 'running', message: 'Starting...', progress: 0, jobs_found: 0, matches: 0 };
+			searchStatus = { status: 'running', message: 'Starting...', progress: 0, jobs_found: 0, matches: 0, errors: [] };
 			startPolling();
 		} catch (e: any) {
-			searchStatus = { ...searchStatus, status: 'error', message: e.message };
+			searchStatus = { ...searchStatus, status: 'error', message: e.message, errors: [] };
 		}
 	}
 
@@ -186,10 +186,30 @@
 
 	{#if searchStatus.status === 'done' && searchStatus.message}
 		<div class="alert alert-success">{searchStatus.message}</div>
+		{#if searchStatus.errors?.length}
+			<details class="search-warnings">
+				<summary>{searchStatus.errors.length} warning{searchStatus.errors.length > 1 ? 's' : ''} during search</summary>
+				<ul>
+					{#each searchStatus.errors as err}
+						<li>{err}</li>
+					{/each}
+				</ul>
+			</details>
+		{/if}
 	{/if}
 
 	{#if searchStatus.status === 'error'}
 		<div class="alert alert-error">{searchStatus.message}</div>
+		{#if searchStatus.errors?.length}
+			<details class="search-warnings" open>
+				<summary>{searchStatus.errors.length} warning{searchStatus.errors.length > 1 ? 's' : ''} during search</summary>
+				<ul>
+					{#each searchStatus.errors as err}
+						<li>{err}</li>
+					{/each}
+				</ul>
+			</details>
+		{/if}
 	{/if}
 
 	{#if tailorError}
@@ -635,5 +655,26 @@
 
 	.btn-restore:hover {
 		text-decoration: underline;
+	}
+
+	.search-warnings {
+		margin-top: 8px;
+		font-size: 13px;
+		color: var(--text-muted);
+	}
+
+	.search-warnings summary {
+		cursor: pointer;
+		color: var(--warning, #f59e0b);
+		font-weight: 500;
+	}
+
+	.search-warnings ul {
+		margin: 6px 0 0;
+		padding-left: 20px;
+	}
+
+	.search-warnings li {
+		margin: 2px 0;
 	}
 </style>

@@ -21,6 +21,7 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 - Node.js 22+ (for frontend build)
 - [uv](https://docs.astral.sh/uv/) package manager
 - An [Anthropic API key](https://console.anthropic.com/)
+- A [RapidAPI key](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) (strongly recommended — enables JSearch for LinkedIn/Indeed/Glassdoor results)
 
 ### Setup
 

@@ -8,6 +8,7 @@
 	--primary-hover: #1d4ed8;
 	--primary-soft: rgba(37, 99, 235, 0.1);
 	--success: #16a34a;
+	--warning: #d97706;
 	--error: #dc2626;
 	--score-high: #16a34a;
 	--score-mid: #ca8a04;
@@ -36,6 +37,7 @@
 		--primary-hover: #2dd4bf;
 		--primary-soft: rgba(94, 234, 212, 0.1);
 		--success: #34d399;
+		--warning: #fbbf24;
 		--error: #f87171;
 		--score-high: #34d399;
 		--score-mid: #fbbf24;

@@ -6,9 +6,13 @@ Get Matchbox running on your Mac in 5 minutes.
 
 Download and install from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/). Open Docker Desktop and wait for it to finish starting (you'll see a green icon in the menu bar).
 
-## 2. Get an Anthropic API key
+## 2. Get your API keys
 
-Sign up at [console.anthropic.com](https://console.anthropic.com/), add a payment method, then create an API key. Copy it — you'll paste it into Matchbox in step 5.
+**Anthropic (required):** Sign up at [console.anthropic.com](https://console.anthropic.com/), add a payment method, then create an API key.
+
+**RapidAPI / JSearch (strongly recommended):** JSearch pulls jobs from LinkedIn, Indeed, and Glassdoor — without it you'll only get results from smaller boards. Sign up at [rapidapi.com](https://rapidapi.com/), subscribe to [JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) (there's a free tier), and copy your RapidAPI key.
+
+Copy both keys — you'll paste them into Matchbox in step 5.
 
 ## 3. Download Matchbox
 
@@ -34,10 +38,11 @@ The first build takes a few minutes. When you see `Uvicorn running on http://0.0
 Open [http://localhost:8000](http://localhost:8000) in your browser and go to **Settings**:
 
 1. Paste your Anthropic API key
-2. Paste your resume (markdown or plain text)
-3. Click **Generate from Resume** to auto-fill your profile and search queries
-4. Adjust target roles and search queries to your liking
-5. Click **Save**
+2. Paste your RapidAPI key (if you have one)
+3. Paste your resume (markdown or plain text)
+4. Click **Generate from Resume** to auto-fill your profile and search queries
+5. Adjust target roles and search queries to your liking
+6. Click **Save**
 
 ## 6. Run your first search
 

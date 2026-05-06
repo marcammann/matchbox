@@ -78,6 +78,7 @@ _search_state = {
     "progress": 0,
     "jobs_found": 0,
     "matches": 0,
+    "errors": [],
 }
 _search_lock = threading.Lock()
 
@@ -350,9 +351,20 @@ async def update_resume(request: Request):
 
 # --- Search ---
 
+class _SearchWarningCollector(logging.Handler):
+    def __init__(self):
+        super().__init__(level=logging.WARNING)
+        self.warnings: list[str] = []
+
+    def emit(self, record: logging.LogRecord):
+        self.warnings.append(record.getMessage())
+
+
 def _run_search():
+    collector = _SearchWarningCollector()
+    logging.getLogger("matchbox").addHandler(collector)
     try:
-        _search_state.update(status="running", message="Loading config...", progress=2, jobs_found=0, matches=0)
+        _search_state.update(status="running", message="Loading config...", progress=2, jobs_found=0, matches=0, errors=[])
         config.reload_config()
 
         all_jobs = []
@@ -388,7 +400,10 @@ def _run_search():
                 message=f"Searching {label}... ({i + 1}/{total})",
                 progress=5 + int(55 * i / total),
             )
-            all_jobs.extend(fn())
+            try:
+                all_jobs.extend(fn())
+            except Exception:
+                log.warning("%s: source failed entirely", name, exc_info=True)
 
         jobs = deduplicate(all_jobs)
         _search_state["jobs_found"] = len(jobs)
@@ -408,14 +423,17 @@ def _run_search():
         else:
             _search_state.update(message="No new jobs to score.", progress=90)
 
-        _search_state.update(
-            status="done",
-            message=f"Done: {len(jobs)} total, {len(new_jobs)} new, {matched_count} matches.",
-            progress=100,
-        )
+        _search_state["errors"] = collector.warnings
+        msg = f"Done: {len(jobs)} total, {len(new_jobs)} new, {matched_count} matches."
+        if collector.warnings:
+            msg += f" ({len(collector.warnings)} warning{'s' if len(collector.warnings) > 1 else ''})"
+        _search_state.update(status="done", message=msg, progress=100)
     except Exception as e:
         log.error("Search failed", exc_info=True)
+        _search_state["errors"] = collector.warnings
         _search_state.update(status="error", message=str(e))
+    finally:
+        logging.getLogger("matchbox").removeHandler(collector)
 
 
 @app.post("/api/search")
