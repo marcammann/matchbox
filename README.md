@@ -22,10 +22,11 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 
 ### Setup
 
+No setup files are required — configure everything through the web UI on first launch. Or to pre-configure:
+
 ```bash
 cp config.yaml.example config.yaml   # edit with your API keys and profile
 cp RESUME.example.md RESUME.md       # paste your resume in markdown
-cp .env.example .env                 # add your Anthropic API key
 ```
 
 ### Run the web app
@@ -50,7 +51,7 @@ uv run matchbox
 docker compose up --build
 ```
 
-Make sure `config.yaml` and `RESUME.md` exist in the project root — they're mounted into the container.
+All user data (config, resume, database, generated PDFs) lives in the `data/` directory — shared between Docker and the CLI.
 
 ## Configuration
 

@@ -1,6 +1,7 @@
 .env
 config.yaml
 RESUME.md
+data/
 .seen_jobs.json
 .manual_jobs_done.txt
 manual_jobs.txt

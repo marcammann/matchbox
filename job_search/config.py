@@ -10,22 +10,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR)))
+DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 OUTPUT_DIR = DATA_DIR / "output"
 SEEN_JOBS_PATH = DATA_DIR / ".seen_jobs.json"
 CONFIG_PATH = DATA_DIR / "config.yaml"
 
-if not CONFIG_PATH.exists() and DATA_DIR != BASE_DIR and (BASE_DIR / "config.yaml").exists():
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(BASE_DIR / "config.yaml", CONFIG_PATH)
-
 
 def _load_yaml() -> dict:
     if not CONFIG_PATH.exists():
-        raise FileNotFoundError(f"config.yaml not found at {CONFIG_PATH}")
+        return {}
     with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f)
+        return yaml.safe_load(f) or {}
 
 
 RESUME_PATH: Path = Path()
@@ -90,7 +87,7 @@ def _apply(cfg: dict) -> None:
     PDF_CSS = cfg.get("pdf_css", "").strip()
 
 
-_raw: dict = _load_yaml()
+_raw: dict = _load_yaml() or {}
 _apply(_raw)
 
 

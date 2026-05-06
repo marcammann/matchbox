@@ -4,11 +4,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - data:/data
-      - ./config.yaml:/data/config.yaml:ro
-      - ./RESUME.md:/data/RESUME.md:ro
+      - ./data:/data
     environment:
       - DATA_DIR=/data
-
-volumes:
-  data:
