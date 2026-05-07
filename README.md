@@ -107,7 +107,7 @@ All user data (config, resume, database, generated PDFs) lives in the `data/` di
 
 ## Why this isn't production-ready
 
-Matchbox was sketched out quickly as a personal tool. There's a long list of things that would need to change before it could be a real product:
+Matchbox was sketched out quickly as a personal tool — it's a throwaway sketch. The value is in learning what components you need, not in the code itself. If you were building this for real, you'd toss it out and start over cleanly. Here's a taste of what would need to change:
 
 - **No auth or multi-tenancy.** Adding proper authentication (SSO, OAuth) is a significant effort on its own, and SSO providers add cost and complexity.
 - **Fragile long-running processes.** API calls kick off background tasks that can silently fail. In production, these should be modeled as durable workflows with retries, state tracking, and proper error recovery.
