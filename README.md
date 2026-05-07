@@ -9,6 +9,14 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 [![Setup guide](https://cdn.loom.com/sessions/thumbnails/686f07368a7641a2a43f0afef80cbcac-with-play.gif)](https://www.loom.com/share/686f07368a7641a2a43f0afef80cbcac)
 [![Usage guide](https://cdn.loom.com/sessions/thumbnails/e648bdb974924a65ba222facd1bf5943-with-play.gif)](https://www.loom.com/share/e648bdb974924a65ba222facd1bf5943)
 
+## Philosophy
+
+Matchbox is a personal tool, not a platform. Clone the repo, point it at your resume and API keys, and run it yourself. The codebase is intentionally small and straightforward so you can open it in [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and reshape it to fit your search — add job sources, tweak scoring prompts, change the UI, whatever you need.
+
+You don't need to be a developer to use it. One early user — with no prior engineering experience — went from zero to a working Docker setup in an afternoon, learning Git, API keys, and Docker along the way.
+
+![Non-technical user getting Matchbox running](docs/textmessage.png)
+
 ## What it does
 
 - **Multi-source search** — Remotive, JSearch (LinkedIn/Indeed/Glassdoor), Greenhouse boards, Lever boards, company career pages, HN Who is Hiring, YC Jobs
