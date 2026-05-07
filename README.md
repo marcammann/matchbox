@@ -18,13 +18,10 @@ Open [http://localhost:8000](http://localhost:8000), go to **Settings**, paste y
 
 New to the command line? The [Quickstart guide](QUICKSTART.md) walks you through every step, including installing Docker and getting API keys.
 
-## Video walkthrough
+## Demo
 
-<a href="https://www.loom.com/share/686f07368a7641a2a43f0afef80cbcac">
-  <img src="docs/loom-setup.gif" alt="Setup guide" width="400">
-</a>
-<a href="https://www.loom.com/share/e648bdb974924a65ba222facd1bf5943">
-  <img src="docs/loom-usage.gif" alt="Usage guide" width="400">
+<a href="https://www.loom.com/share/3a07a4e65bb14f04aafaee837661d005">
+  <img src="docs/loom-demo.gif" alt="Matchbox demo" width="600">
 </a>
 
 ## Philosophy
