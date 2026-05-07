@@ -4,6 +4,11 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 
 ![Matchbox dashboard](docs/screenshot.png)
 
+## Video walkthrough
+
+[![Setup guide](https://cdn.loom.com/sessions/thumbnails/686f07368a7641a2a43f0afef80cbcac-with-play.gif)](https://www.loom.com/share/686f07368a7641a2a43f0afef80cbcac)
+[![Usage guide](https://cdn.loom.com/sessions/thumbnails/e648bdb974924a65ba222facd1bf5943-with-play.gif)](https://www.loom.com/share/e648bdb974924a65ba222facd1bf5943)
+
 ## What it does
 
 - **Multi-source search** — Remotive, JSearch (LinkedIn/Indeed/Glassdoor), Greenhouse boards, Lever boards, company career pages, HN Who is Hiring, YC Jobs
@@ -79,6 +84,16 @@ API keys can also be set via environment variables (`ANTHROPIC_API_KEY`, `RAPIDA
 - **Database:** SQLite (auto-created as `data/jobs.db`)
 - **AI:** Anthropic Claude via LangChain for scoring, tailoring, and extraction
 - **PDF:** WeasyPrint for resume and cover letter generation
+
+## Why this isn't production-ready
+
+Matchbox was sketched out quickly as a personal tool. There's a long list of things that would need to change before it could be a real product:
+
+- **No auth or multi-tenancy.** Adding proper authentication (SSO, OAuth) is a significant effort on its own, and SSO providers add cost and complexity.
+- **Fragile long-running processes.** API calls kick off background tasks that can silently fail. In production, these should be modeled as durable workflows with retries, state tracking, and proper error recovery.
+- **Manual API key management.** Users have to bring their own Anthropic and RapidAPI keys. A real product would absorb AI costs and handle billing (Stripe, usage metering, etc.). Something like OpenRouter could simplify model access with a single key, but that still requires key management infrastructure. Keeping this BYO-key means zero additional cost to try it.
+- **Limited job board coverage.** The search relies on heuristics across a handful of ATS platforms (Greenhouse, Lever, Ashby) and job aggregators. A production system would need integrations with all major ATS providers and a proper service to identify where each company posts jobs. Many companies only list jobs on their own sites behind JavaScript-heavy pages — Netflix is a good example — which would require per-company scraping workflows with browser automation.
+- Lots more, but this is just a starting point.
 
 ## License
 
