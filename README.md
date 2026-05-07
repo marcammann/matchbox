@@ -4,10 +4,28 @@ AI-powered job search agent that finds roles, matches them to your profile, and 
 
 ![Matchbox dashboard](docs/screenshot.png)
 
+## Get started
+
+The fastest way to get running is with Docker — no Python or Node.js required:
+
+```bash
+git clone https://github.com/marcammann/matchbox.git
+cd matchbox
+docker compose up --build
+```
+
+Open [http://localhost:8000](http://localhost:8000), go to **Settings**, paste your API keys and resume, and run your first search.
+
+New to the command line? The [Quickstart guide](QUICKSTART.md) walks you through every step, including installing Docker and getting API keys.
+
 ## Video walkthrough
 
-[![Setup guide](https://cdn.loom.com/sessions/thumbnails/686f07368a7641a2a43f0afef80cbcac-with-play.gif)](https://www.loom.com/share/686f07368a7641a2a43f0afef80cbcac)
-[![Usage guide](https://cdn.loom.com/sessions/thumbnails/e648bdb974924a65ba222facd1bf5943-with-play.gif)](https://www.loom.com/share/e648bdb974924a65ba222facd1bf5943)
+<a href="https://www.loom.com/share/686f07368a7641a2a43f0afef80cbcac">
+  <img src="docs/loom-setup.gif" alt="Setup guide" width="400">
+</a>
+<a href="https://www.loom.com/share/e648bdb974924a65ba222facd1bf5943">
+  <img src="docs/loom-usage.gif" alt="Usage guide" width="400">
+</a>
 
 ## Philosophy
 
@@ -19,14 +37,16 @@ You don't need to be a developer to use it. One early user — with no prior eng
 
 ## What it does
 
-- **Multi-source search** — Remotive, JSearch (LinkedIn/Indeed/Glassdoor), Greenhouse boards, Lever boards, company career pages, HN Who is Hiring, YC Jobs
+- **Multi-source search** — Remotive, JSearch (LinkedIn/Indeed/Glassdoor), Greenhouse, Lever, Ashby boards, company career pages, HN Who is Hiring, YC Jobs
 - **AI scoring** — every job is evaluated against your profile and target roles using Claude
 - **Tailored applications** — generates customized resumes and cover letters for top matches
 - **Web dashboard** — browse, manage, and prepare applications with a clean UI
+- **Company targeting** — add companies by name or URL and Matchbox auto-detects their ATS (Greenhouse, Lever, Ashby)
+- **Remote In Tech browser** — browse 800+ remote-friendly companies, filter by tech stack, match against your resume, and add them as targets
+- **Smart career page scraping** — auto-detects ATS URLs on career pages and uses the API directly; warns when pages require JavaScript rendering
 - **CLI mode** — batch processing for automated daily runs
-- **Company targeting** — add companies by name and Matchbox finds where they list jobs
 
-## Quick start
+## Running without Docker
 
 ### Prerequisites
 
@@ -36,16 +56,7 @@ You don't need to be a developer to use it. One early user — with no prior eng
 - An [Anthropic API key](https://console.anthropic.com/)
 - A [RapidAPI key](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) (strongly recommended — enables JSearch for LinkedIn/Indeed/Glassdoor results)
 
-### Setup
-
-No setup files are required — configure everything through the web UI on first launch. Or to pre-configure:
-
-```bash
-cp data/config.yaml.default data/config.yaml   # edit with your API keys and profile
-cp data/RESUME.example.md data/RESUME.md       # paste your resume in markdown
-```
-
-### Run the web app
+### Web app
 
 ```bash
 uv sync
@@ -55,34 +66,35 @@ uv run matchbox-web
 
 Open [http://localhost:8000](http://localhost:8000)
 
-### Run the CLI
+### CLI
 
 ```bash
 uv run matchbox
 ```
 
-### Docker
-
-```bash
-docker compose up --build
-```
-
-All user data (config, resume, database, generated PDFs) lives in the `data/` directory — shared between Docker and the CLI.
-
 ## Configuration
 
-All configuration lives in `data/config.yaml`:
+All configuration lives in `data/config.yaml` or can be set through the web UI:
 
 - **API keys** — Anthropic (required), RapidAPI (optional, enables JSearch)
 - **Profile** — your professional background, used for matching and cover letters
 - **Target roles** — description of what you're looking for
 - **Search queries** — keywords to search across job boards
-- **Target companies** — Greenhouse/Lever board tokens and career page URLs
+- **Target companies** — Greenhouse/Lever/Ashby board tokens and career page URLs
 - **Sources** — toggle which job boards to search
 - **Prompts** — customize how the AI scores jobs, tailors resumes, and writes cover letters
 - **PDF CSS** — custom styling for generated resume and cover letter PDFs
 
 API keys can also be set via environment variables (`ANTHROPIC_API_KEY`, `RAPIDAPI_KEY`) or `.env` file.
+
+To pre-configure without the UI:
+
+```bash
+cp data/config.yaml.default data/config.yaml   # edit with your API keys and profile
+cp data/RESUME.example.md data/RESUME.md       # paste your resume in markdown
+```
+
+All user data (config, resume, database, generated PDFs) lives in the `data/` directory.
 
 ## Architecture
 
